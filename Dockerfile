@@ -1,7 +1,10 @@
 FROM php:8.3-apache
 
-RUN docker-php-ext-install pdo_mysql \
-    && a2enmod rewrite headers
+# O PHP com Apache precisa usar apenas um MPM.
+# Algumas versões da imagem base podem deixar mais de um MPM habilitado.
+RUN a2dismod mpm_event mpm_worker mpm_worker2 2>/dev/null || true \
+    && a2enmod mpm_prefork rewrite headers \
+    && docker-php-ext-install pdo_mysql
 
 COPY . /var/www/html/
 
