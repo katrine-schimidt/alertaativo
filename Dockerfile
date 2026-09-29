@@ -1,17 +1,13 @@
-FROM php:8.3-apache
+FROM php:8.3-cli
 
-# O Apache deve usar apenas o MPM prefork com o módulo PHP.
-RUN rm -f /etc/apache2/mods-enabled/mpm_event.load \
-          /etc/apache2/mods-enabled/mpm_event.conf \
-          /etc/apache2/mods-enabled/mpm_worker.load \
-          /etc/apache2/mods-enabled/mpm_worker.conf \
-          /etc/apache2/mods-enabled/mpm_prefork.load \
-          /etc/apache2/mods-enabled/mpm_prefork.conf \
-    && a2enmod mpm_prefork rewrite headers \
-    && docker-php-ext-install pdo_mysql
+# Servidor PHP simples para o Railway.
+# Usamos o servidor embutido do PHP para evitar conflitos de MPM do Apache.
+RUN docker-php-ext-install pdo_mysql
 
 COPY . /var/www/html/
 
 RUN chown -R www-data:www-data /var/www/html
 
-EXPOSE 80
+EXPOSE 8080
+
+CMD ["sh", "-c", "php -S 0.0.0.0:${PORT:-8080} -t /var/www/html"]
