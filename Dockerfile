@@ -1,14 +1,17 @@
 FROM php:8.3-apache
 
-# O PHP com Apache precisa usar apenas um MPM.
-# Algumas versões da imagem base podem deixar mais de um MPM habilitado.
-RUN a2dismod mpm_event mpm_worker mpm_worker2 2>/dev/null || true \
+# O Apache deve usar apenas o MPM prefork com o módulo PHP.
+RUN rm -f /etc/apache2/mods-enabled/mpm_event.load \
+          /etc/apache2/mods-enabled/mpm_event.conf \
+          /etc/apache2/mods-enabled/mpm_worker.load \
+          /etc/apache2/mods-enabled/mpm_worker.conf \
+          /etc/apache2/mods-enabled/mpm_prefork.load \
+          /etc/apache2/mods-enabled/mpm_prefork.conf \
     && a2enmod mpm_prefork rewrite headers \
     && docker-php-ext-install pdo_mysql
 
 COPY . /var/www/html/
 
-RUN chown -R www-data:www-data /var/www/html \
-    && rm -f /var/www/html/backend/api/.instalado
+RUN chown -R www-data:www-data /var/www/html
 
 EXPOSE 80
