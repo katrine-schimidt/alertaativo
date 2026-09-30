@@ -604,6 +604,10 @@ function removeCompany(id){if(!confirm('Excluir empresa e os vínculos de gestor
 function removeManager(id){if(confirm('Excluir este gestor?')){state.gestores=state.gestores.filter(x=>x.id!==id);save();render()}}
 function removeTraining(id){if(confirm('Excluir este treinamento do catálogo? Os registros históricos serão mantidos.')){state.treinamentos=state.treinamentos.filter(x=>x.id!==id);save();render()}}
 function removeColab(id){if(confirm('Excluir este colaborador e seus registros?')){state.colaboradores=state.colaboradores.filter(x=>x.id!==id);state.registros=state.registros.filter(x=>x.colaboradorId!==id);save();render()}}
+function closeModal(){
+ const root=document.getElementById('modalRoot');
+ if(root)root.innerHTML='';
+}
 function showColabTrainings(colabId){
  const c=collaborator(colabId);
  if(!c)return notify('Colaborador não encontrado.');
@@ -620,10 +624,16 @@ function openColabTraining(colabId){
  document.getElementById('modalRoot').innerHTML=`<div class="modal-backdrop"><div class="modal"><h2>Registrar treinamento realizado</h2><p class="sub">${esc(collaborator(colabId)?.nome)}</p><div class="field"><label>Treinamento</label><select id="mTreino">${opts}</select></div><div class="field"><label>Data de realização *</label><input id="mData" type="date" value="${todayISO()}" required></div><div class="field"><label>Data de fim / validade *</label><input id="mDataFim" type="date" required><small style="color:var(--muted)">Informe até quando este treinamento ficará válido.</small></div><div class="actions"><button class="btn" onclick="saveRecord('${colabId}')">Salvar</button><button class="btn gray" onclick="closeModal()">Cancelar</button></div></div></div>`;
 }
 function saveRecord(cid){
- if(!mTreino.value||!mData.value||!mDataFim.value)return notify('Preencha todos os campos.');
- if(mDataFim.value<mData.value)return notify('A data de fim não pode ser anterior à data de realização.');
- state.registros.push({id:uid(),colaboradorId:cid,treinamentoId:mTreino.value,dataRealizacao:mData.value,dataFim:mDataFim.value});
- save();closeModal();toast('Treinamento registrado');render();
+ const treino=document.getElementById('mTreino')?.value;
+ const data=document.getElementById('mData')?.value;
+ const fim=document.getElementById('mDataFim')?.value;
+ if(!treino||!data||!fim)return notify('Preencha todos os campos.');
+ if(fim<data)return notify('A data de fim não pode ser anterior à data de realização.');
+ state.registros.push({id:uid(),colaboradorId:cid,treinamentoId:treino,dataRealizacao:data,dataFim:fim});
+ save();
+ closeModal();
+ render();
+ toast('Treinamento registrado com sucesso.');
 }
 function editRecord(recordId){
  const r=state.registros.find(x=>x.id===recordId);
@@ -637,7 +647,7 @@ function editRecord(recordId){
  <div class="field"><label>Treinamento *</label><select id="editTreino">${role==='dev' ? state.treinamentos.map(t=>`<option value="${t.id}" ${t.id===r.treinamentoId?'selected':''}>${esc(t.nome)}</option>`).join('') : opts}</select></div>
  <div class="field"><label>Data de realização *</label><input id="editData" type="date" value="${esc(r.dataRealizacao||'')}" required></div>
  <div class="field"><label>Data de fim / validade *</label><input id="editDataFim" type="date" value="${esc(r.dataFim||r.venc||'')}" required><small style="color:var(--muted)">Você pode alterar livremente a data de realização e a data de vencimento.</small></div>
- <div class="actions"><button class="btn" onclick="saveEditedRecord('${recordId}')">Salvar alterações</button><button class="btn gray" onclick="showColabTrainings('${r.colaboradorId}')">Cancelar</button></div>
+ <div class="actions"><button class="btn" onclick="saveEditedRecord('${recordId}')">Salvar alterações</button><button class="btn gray" onclick="closeModal()">Cancelar</button></div>
  </div></div>`;
 }
 function saveEditedRecord(recordId){
@@ -648,8 +658,13 @@ function saveEditedRecord(recordId){
  const treino=document.getElementById('editTreino')?.value;
  if(!treino||!data||!fim)return notify('Preencha todos os campos.');
  if(fim<data)return notify('A data de fim não pode ser anterior à data de realização.');
- r.treinamentoId=treino;r.dataRealizacao=data;r.dataFim=fim;
- save();toast('Treinamento atualizado');closeModal();render();
+ r.treinamentoId=treino;
+ r.dataRealizacao=data;
+ r.dataFim=fim;
+ save();
+ closeModal();
+ render();
+ toast('Treinamento atualizado com sucesso.');
 }
 function removeRecord(recordId){
  const r=state.registros.find(x=>x.id===recordId);
