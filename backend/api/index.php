@@ -59,13 +59,85 @@ function empresaDe(string $col, string $id): ?string {
 }
 
 /* ---------- sessão ---------- */
+class SessaoMySQL implements SessionHandlerInterface {
+    public function open(string $path, string $name): bool { return true; }
+    public function close(): bool { return true; }
+
+    public function read(string $id): string {
+        try {
+            $st = pdo()->prepare('SELECT dados FROM alerta_sessoes WHERE id=? AND expira>? LIMIT 1');
+            $st->execute([$id, time()]);
+            $dados = $st->fetchColumn();
+            return $dados === false ? '' : (string)$dados;
+        } catch (Throwable $e) {
+            error_log('Sessão read: ' . $e->getMessage());
+            return '';
+        }
+    }
+
+    public function write(string $id, string $data): bool {
+        try {
+            $expira = time() + 604800;
+            $st = pdo()->prepare(
+                'INSERT INTO alerta_sessoes (id, dados, expira) VALUES (?, ?, ?)
+                 ON DUPLICATE KEY UPDATE dados=VALUES(dados), expira=VALUES(expira)'
+            );
+            return $st->execute([$id, $data, $expira]);
+        } catch (Throwable $e) {
+            error_log('Sessão write: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function destroy(string $id): bool {
+        try {
+            return pdo()->prepare('DELETE FROM alerta_sessoes WHERE id=?')->execute([$id]);
+        } catch (Throwable $e) {
+            error_log('Sessão destroy: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function gc(int $max_lifetime): int|false {
+        try {
+            $st = pdo()->prepare('DELETE FROM alerta_sessoes WHERE expira<=?');
+            $st->execute([time()]);
+            return $st->rowCount();
+        } catch (Throwable $e) {
+            error_log('Sessão gc: ' . $e->getMessage());
+            return false;
+        }
+    }
+}
+
 function iniciarSessao(): void {
+    static $iniciada = false;
+    if ($iniciada) return;
+
+    // As sessões ficam no MySQL, e não no disco temporário do Railway.
+    // Isso evita perder o login quando o container reinicia ou muda de instância.
+    $pdo = pdo();
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS alerta_sessoes (
+            id VARCHAR(128) NOT NULL PRIMARY KEY,
+            dados LONGTEXT NOT NULL,
+            expira INT UNSIGNED NOT NULL,
+            INDEX idx_alerta_sessoes_expira (expira)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
+    );
+
+    ini_set('session.gc_maxlifetime', '604800');
     session_name('alerta_ativo');
+    session_set_save_handler(new SessaoMySQL(), true);
     session_set_cookie_params([
-        'lifetime' => 0, 'path' => '/', 'httponly' => true,
-        'samesite' => 'Lax', 'secure' => !empty($_SERVER['HTTPS']),
+        'lifetime' => 604800,
+        'path' => '/',
+        'httponly' => true,
+        'samesite' => 'Lax',
+        'secure' => !empty($_SERVER['HTTPS']),
     ]);
     session_start();
+    $iniciada = true;
 }
 
 function exigirAuth(): array {
