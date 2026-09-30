@@ -194,14 +194,25 @@ function sessaoResposta(array $a): array {
 
 /* ---------- leitura ---------- */
 function visivel(array $a, string $col, array $it): bool {
-    if ($col === 'treinamentos') return in_array($a['empresa'], (array)($it['empresas'] ?? []), true);
-    if ($a['papel'] === 'gestor') return true;
-    $eu = $a['id'];
-    switch ($col) {
-        case 'empresas': case 'agendamentos': case 'colaboradores': case 'gestores': return true;
-        case 'registros': return ($it['colaboradorId'] ?? null) === $eu;
-        default: return (($it['colaboradorId'] ?? $it['autorId'] ?? null) === $eu);
+    if ($a['papel'] === 'dev') return true;
+
+    if ($col === 'treinamentos') {
+        return in_array($a['empresa'], (array)($it['empresas'] ?? []), true);
     }
+
+    if ($a['papel'] === 'gestor') {
+        // O filtro SQL já limita os dados à empresa do gestor.
+        // Ainda assim, nunca expomos o cadastro de outros gestores.
+        if ($col === 'gestores') return ($it['id'] ?? null) === $a['id'];
+        if ($col === 'empresas') return ($it['id'] ?? null) === $a['empresa'];
+        return true;
+    }
+
+    // Colaborador: somente seus próprios dados e registros relacionados a ele.
+    $eu = $a['id'];
+    if ($col === 'colaboradores') return ($it['id'] ?? null) === $eu;
+    if ($col === 'registros') return ($it['colaboradorId'] ?? null) === $eu;
+    return (($it['colaboradorId'] ?? $it['autorId'] ?? null) === $eu);
 }
 
 function estadoPara(array $a): array {
@@ -251,13 +262,29 @@ function negar(string $m = 'Sem permissão para esta operação.'): void { throw
 function apagar(array $a, string $col, $id): void {
     if (!is_string($id) || !idValido($id)) return;
     if ($a['papel'] === 'colaborador') negar();
-    $st = pdo()->prepare('SELECT empresa_id FROM dados WHERE colecao=? AND id=?');
+
+    $st = pdo()->prepare('SELECT empresa_id, json FROM dados WHERE colecao=? AND id=?');
     $st->execute([$col, $id]);
     $l = $st->fetch();
     if (!$l) return;
+
     if ($a['papel'] === 'gestor') {
-        if ($col === 'empresas' || $col === 'treinamentos' || (string)$l['empresa_id'] !== (string)$a['empresa']) negar('Sem permissão para excluir.');
+        // Gestor não administra empresas, treinamentos-base ou outros gestores.
+        if (!in_array($col, ['colaboradores','registros','agendamentos','solicitacoes','alertas','avaliacoes','chamados','duvidas'], true)) {
+            negar('Gestor não pode excluir este tipo de registro.');
+        }
+        if ((string)$l['empresa_id'] !== (string)$a['empresa']) {
+            negar('Sem permissão para excluir este registro.');
+        }
+        if ($col === 'registros') {
+            $r = json_decode((string)$l['json'], true);
+            $cid = is_array($r) ? (string)($r['colaboradorId'] ?? '') : '';
+            if ($cid === '' || empresaDe('colaboradores', $cid) !== (string)$a['empresa']) {
+                negar('Registro fora da empresa do gestor.');
+            }
+        }
     }
+
     pdo()->prepare('DELETE FROM dados WHERE colecao=? AND id=?')->execute([$col, $id]);
 }
 
@@ -271,10 +298,22 @@ function gravar(array $a, string $col, $it): void {
     $emp = empresaDoItem($col, $it);
 
     if ($a['papel'] === 'gestor') {
-        if ($col === 'treinamentos') negar();
-        if ($col === 'empresas') { if ($id !== $a['empresa']) negar(); }
-        elseif ($emp !== $a['empresa']) negar();
-        if ($ex && (string)$ex['empresa_id'] !== (string)$a['empresa']) negar();
+        // Permissões de escrita do gestor: somente dados operacionais da própria empresa.
+        // O cadastro-base de treinamentos e empresas é administrado pelo DEV.
+        $permitidas = ['colaboradores','registros','agendamentos','solicitacoes','alertas','avaliacoes','chamados','duvidas'];
+        if (!in_array($col, $permitidas, true)) negar('Gestor não pode editar este tipo de registro.');
+        if ($emp !== $a['empresa']) negar('Sem permissão para esta empresa.');
+        if ($ex && (string)$ex['empresa_id'] !== (string)$a['empresa']) negar('Registro de outra empresa.');
+
+        if ($col === 'registros') {
+            $cid = (string)($it['colaboradorId'] ?? '');
+            if ($cid === '' || empresaDe('colaboradores', $cid) !== (string)$a['empresa']) {
+                negar('Treinamento de colaborador de outra empresa.');
+            }
+        }
+        if ($col === 'colaboradores' && isset($it['empresaId']) && (string)$it['empresaId'] !== (string)$a['empresa']) {
+            negar('Colaborador de outra empresa.');
+        }
     } elseif ($a['papel'] === 'colaborador') {
         if (!in_array($col, ['duvidas','solicitacoes','avaliacoes'], true)) negar();
         $dono = $it['autorId'] ?? $it['colaboradorId'] ?? null;
