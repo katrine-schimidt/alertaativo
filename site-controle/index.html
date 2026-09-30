@@ -324,7 +324,7 @@ function abrirPainelTV(){
   emp=state.empresas[n-1];
  }
  if(!emp)return notify('Nenhuma empresa selecionada.');
- const rel=`painel-tv.html?empresa=${encodeURIComponent(emp.id)}&chave=${encodeURIComponent(chavesPainel[emp.id]||'')}`;
+ const rel=`../site-tv/index.html?empresa=${encodeURIComponent(emp.id)}&chave=${encodeURIComponent(chavesPainel[emp.id]||'')}`;
  const url=new URL(rel,location.href).href;
  if(navigator.clipboard)navigator.clipboard.writeText(url).then(()=>toast('Link do painel copiado. Use-o na TV.')).catch(()=>{});
  window.open(url,'_blank');
@@ -416,7 +416,7 @@ function devVencimentos(){
 }
 function devRowsHtml(rows){
  if(!rows.length)return '<div class="empty">Nenhum treinamento realizado foi registrado.</div>';
- return `<div class="table-wrap"><table><thead><tr><th>Empresa</th><th>Colaborador</th><th>Treinamento</th><th>Realizado</th><th>Vencimento</th><th>Status</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(company(r.colab.empresaId)?.nome)}</td><td>${esc(r.colab.nome)}</td><td>${esc(r.t.nome)}</td><td>${dateBR(r.dataRealizacao)}</td><td>${dateBR(r.venc)}</td><td><span class="badge ${r.status.cls}">${r.status.text}</span></td></tr>`).join('')}</tbody></table></div>`;
+ return `<div class="table-wrap"><table><thead><tr><th>Empresa</th><th>Colaborador</th><th>Treinamento</th><th>Realizado</th><th>Vencimento</th><th>Status</th><th>Ações</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(company(r.colab.empresaId)?.nome)}</td><td>${esc(r.colab.nome)}</td><td>${esc(r.t.nome)}</td><td>${dateBR(r.dataRealizacao)}</td><td>${dateBR(r.venc)}</td><td><span class="badge ${r.status.cls}">${r.status.text}</span></td><td><div class="actions"><button class="btn small" onclick="editRecord('${r.id}')">Editar</button><button class="btn small red" onclick="removeRecord('${r.id}')">Excluir</button></div></td></tr>`).join('')}</tbody></table></div>`;
 }
 function devAlertas(){
  const rows=buildAllRecords().filter(r=>r.status.days<=30);
@@ -428,14 +428,14 @@ function devAlertas(){
 function myCompanyId(){return user.empresaId}
 function gestorColabs(){
  const list=state.colaboradores.filter(c=>c.empresaId===myCompanyId());
- return `<div class="card"><h2>Cadastro de Colaboradores</h2><p class="sub">Cadastre os colaboradores da sua empresa. Eles receberão um acesso individual somente para visualizar os próprios treinamentos.</p>
+ return `<div class="card"><h2>Cadastro de Colaboradores</h2><p class="sub">Cadastre os colaboradores da sua empresa. Gestores e desenvolvedores podem consultar e editar os treinamentos de cada colaborador.</p>
  <form id="colabForm"><div class="grid">
  <div class="field"><label>Nome completo *</label><input id="cNome" required></div><div class="field"><label>CPF *</label><input id="cCpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" required></div>
  <div class="field"><label>Matrícula *</label><input id="cMat" required></div><div class="field"><label>Função *</label><input id="cFuncao" required></div>
  <div class="field"><label>E-mail / usuário *</label><input id="cEmail" type="email" list="emailSuggestions" autocomplete="email" placeholder="nome@empresa.com.br" required></div><div class="field"><label>Senha *</label><input id="cSenha" required></div>
  <div class="field"><label>Telefone</label><input id="cTel" inputmode="tel" maxlength="15" placeholder="(00) 00000-0000"></div><div class="field"><label>UID RFID *</label><input id="cUid" required placeholder="Ex.: A1B2C3D4"></div>
  </div><button class="btn">Cadastrar colaborador</button></form></div>
- <div class="card"><h2>Colaboradores da empresa (${list.length})</h2>${list.length?`<div class="table-wrap"><table><thead><tr><th>Nome</th><th>Matrícula</th><th>Função</th><th>UID RFID</th><th>Treinamentos</th><th>Ações</th></tr></thead><tbody>${list.map(c=>`<tr><td><strong>${esc(c.nome)}</strong><br><small>${esc(c.email)}</small></td><td>${esc(c.matricula)}</td><td>${esc(c.funcao)}</td><td><code>${esc(c.uid||'—')}</code></td><td>${recordsFor(c.id).length}</td><td><div class="actions"><button class="btn small" onclick="openColabTraining('${c.id}')">Adicionar treinamento</button><button class="btn small red" onclick="removeColab('${c.id}')">Excluir</button></div></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">Nenhum colaborador cadastrado.</div>'}</div>`;
+ <div class="card"><h2>Colaboradores da empresa (${list.length})</h2>${list.length?`<div class="table-wrap"><table><thead><tr><th>Nome</th><th>Matrícula</th><th>Função</th><th>UID RFID</th><th>Treinamentos</th><th>Ações</th></tr></thead><tbody>${list.map(c=>`<tr><td><strong>${esc(c.nome)}</strong><br><small>${esc(c.email)}</small></td><td>${esc(c.matricula)}</td><td>${esc(c.funcao)}</td><td><code>${esc(c.uid||'—')}</code></td><td><button class="btn small gray" onclick="showColabTrainings('${c.id}')">Exibir treinamentos (${recordsFor(c.id).length})</button></td><td><div class="actions"><button class="btn small" onclick="openColabTraining('${c.id}')">Adicionar treinamento</button><button class="btn small red" onclick="removeColab('${c.id}')">Excluir</button></div></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">Nenhum colaborador cadastrado.</div>'}</div>`;
 }
 function availableTrainingsForCompany(){
  return state.treinamentos.filter(t=>(t.empresas||[]).includes(myCompanyId()));
@@ -460,7 +460,7 @@ function gestorVencimentos(){
 }
 function managerRowsHtml(rows){
  if(!rows.length)return '<div class="empty">Nenhum treinamento realizado registrado.</div>';
- return `<div class="table-wrap"><table><thead><tr><th>Colaborador</th><th>Treinamento</th><th>Realizado</th><th>Vencimento</th><th>Situação</th><th>Ações</th></tr></thead><tbody>${rows.map(r=>`<tr><td><strong>${esc(r.colab.nome)}</strong><br><small>${esc(r.colab.matricula)}</small></td><td>${esc(r.t.nome)}</td><td>${dateBR(r.dataRealizacao)}</td><td>${dateBR(r.venc)}</td><td><span class="badge ${r.status.cls}">${r.status.text}</span></td><td><div class="actions"><button class="btn small" onclick="sendAlert('${r.colab.id}','${r.t.id}','whatsapp')">WhatsApp</button><button class="btn small gray" onclick="sendAlert('${r.colab.id}','${r.t.id}','email')">E-mail</button></div></td></tr>`).join('')}</tbody></table></div>`;
+ return `<div class="table-wrap"><table><thead><tr><th>Colaborador</th><th>Treinamento</th><th>Realizado</th><th>Vencimento</th><th>Situação</th><th>Ações</th></tr></thead><tbody>${rows.map(r=>`<tr><td><strong>${esc(r.colab.nome)}</strong><br><small>${esc(r.colab.matricula)}</small></td><td>${esc(r.t.nome)}</td><td>${dateBR(r.dataRealizacao)}</td><td>${dateBR(r.venc)}</td><td><span class="badge ${r.status.cls}">${r.status.text}</span></td><td><div class="actions"><button class="btn small" onclick="editRecord('${r.id}')">Editar</button><button class="btn small red" onclick="removeRecord('${r.id}')">Excluir</button><button class="btn small gray" onclick="sendAlert('${r.colab.id}','${r.t.id}','whatsapp')">WhatsApp</button><button class="btn small gray" onclick="sendAlert('${r.colab.id}','${r.t.id}','email')">E-mail</button></div></td></tr>`).join('')}</tbody></table></div>`;
 }
 function gestorAlertas(){
  const req=state.solicitacoes.filter(s=>s.empresaId===myCompanyId()&&s.status==='pendente');
@@ -604,12 +604,65 @@ function removeCompany(id){if(!confirm('Excluir empresa e os vínculos de gestor
 function removeManager(id){if(confirm('Excluir este gestor?')){state.gestores=state.gestores.filter(x=>x.id!==id);save();render()}}
 function removeTraining(id){if(confirm('Excluir este treinamento do catálogo? Os registros históricos serão mantidos.')){state.treinamentos=state.treinamentos.filter(x=>x.id!==id);save();render()}}
 function removeColab(id){if(confirm('Excluir este colaborador e seus registros?')){state.colaboradores=state.colaboradores.filter(x=>x.id!==id);state.registros=state.registros.filter(x=>x.colaboradorId!==id);save();render()}}
+function showColabTrainings(colabId){
+ const c=collaborator(colabId);
+ if(!c)return notify('Colaborador não encontrado.');
+ const rows=recordsFor(colabId).map(recordInfo).filter(Boolean).sort((a,b)=>a.venc.localeCompare(b.venc));
+ document.getElementById('modalRoot').innerHTML=`<div class="modal-backdrop"><div class="modal" style="max-width:900px">
+ <h2>Treinamentos de ${esc(c.nome)}</h2>
+ <p class="sub">Gestores e desenvolvedores podem editar datas, trocar o treinamento ou excluir registros.</p>
+ ${rows.length?`<div class="table-wrap"><table><thead><tr><th>Treinamento</th><th>Realizado</th><th>Vencimento</th><th>Status</th><th>Ações</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.t.nome)}</td><td>${dateBR(r.dataRealizacao)}</td><td>${dateBR(r.venc)}</td><td><span class="badge ${r.status.cls}">${r.status.text}</span></td><td><div class="actions"><button class="btn small" onclick="editRecord('${r.id}')">Editar</button><button class="btn small red" onclick="removeRecord('${r.id}')">Excluir</button></div></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">Nenhum treinamento registrado para este colaborador.</div>'}
+ <div class="actions" style="margin-top:18px"><button class="btn" onclick="openColabTraining('${colabId}')">+ Adicionar treinamento</button><button class="btn gray" onclick="closeModal()">Fechar</button></div>
+ </div></div>`;
+}
 function openColabTraining(colabId){
  const opts=availableTrainingsForCompany().map(t=>`<option value="${t.id}">${esc(t.nome)}</option>`).join('');
- document.getElementById('modalRoot').innerHTML=`<div class="modal-backdrop"><div class="modal"><h2>Registrar treinamento realizado</h2><p class="sub">${esc(collaborator(colabId)?.nome)}</p><div class="field"><label>Treinamento</label><select id="mTreino">${opts}</select></div><div class="field"><label>Data de realização *</label><input id="mData" type="date" value="${todayISO()}" required></div><div class="field"><label>Data de fim / validade *</label><input id="mDataFim" type="date" min="${todayISO()}" required><small style="color:var(--muted)">Informe até quando este treinamento ficará válido.</small></div><div class="actions"><button class="btn" onclick="saveRecord('${colabId}')">Salvar</button><button class="btn gray" onclick="closeModal()">Cancelar</button></div></div></div>`;
+ document.getElementById('modalRoot').innerHTML=`<div class="modal-backdrop"><div class="modal"><h2>Registrar treinamento realizado</h2><p class="sub">${esc(collaborator(colabId)?.nome)}</p><div class="field"><label>Treinamento</label><select id="mTreino">${opts}</select></div><div class="field"><label>Data de realização *</label><input id="mData" type="date" value="${todayISO()}" required></div><div class="field"><label>Data de fim / validade *</label><input id="mDataFim" type="date" required><small style="color:var(--muted)">Informe até quando este treinamento ficará válido.</small></div><div class="actions"><button class="btn" onclick="saveRecord('${colabId}')">Salvar</button><button class="btn gray" onclick="closeModal()">Cancelar</button></div></div></div>`;
+}
+function saveRecord(cid){
+ if(!mTreino.value||!mData.value||!mDataFim.value)return notify('Preencha todos os campos.');
+ if(mDataFim.value<mData.value)return notify('A data de fim não pode ser anterior à data de realização.');
+ state.registros.push({id:uid(),colaboradorId:cid,treinamentoId:mTreino.value,dataRealizacao:mData.value,dataFim:mDataFim.value});
+ save();closeModal();toast('Treinamento registrado');render();
+}
+function editRecord(recordId){
+ const r=state.registros.find(x=>x.id===recordId);
+ if(!r)return notify('Registro de treinamento não encontrado.');
+ const c=collaborator(r.colaboradorId);
+ const canEdit=role==='dev'||(role==='gestor'&&c&&c.empresaId===myCompanyId());
+ if(!canEdit)return notify('Você não tem permissão para editar este treinamento.');
+ const opts=availableTrainingsForCompany().map(t=>`<option value="${t.id}" ${t.id===r.treinamentoId?'selected':''}>${esc(t.nome)}</option>`).join('');
+ document.getElementById('modalRoot').innerHTML=`<div class="modal-backdrop"><div class="modal">
+ <h2>Editar treinamento</h2><p class="sub"><strong>${esc(c?.nome||'Colaborador')}</strong></p>
+ <div class="field"><label>Treinamento *</label><select id="editTreino">${role==='dev' ? state.treinamentos.map(t=>`<option value="${t.id}" ${t.id===r.treinamentoId?'selected':''}>${esc(t.nome)}</option>`).join('') : opts}</select></div>
+ <div class="field"><label>Data de realização *</label><input id="editData" type="date" value="${esc(r.dataRealizacao||'')}" required></div>
+ <div class="field"><label>Data de fim / validade *</label><input id="editDataFim" type="date" value="${esc(r.dataFim||r.venc||'')}" required><small style="color:var(--muted)">Você pode alterar livremente a data de realização e a data de vencimento.</small></div>
+ <div class="actions"><button class="btn" onclick="saveEditedRecord('${recordId}')">Salvar alterações</button><button class="btn gray" onclick="showColabTrainings('${r.colaboradorId}')">Cancelar</button></div>
+ </div></div>`;
+}
+function saveEditedRecord(recordId){
+ const r=state.registros.find(x=>x.id===recordId);
+ if(!r)return notify('Registro não encontrado.');
+ const data=document.getElementById('editData')?.value;
+ const fim=document.getElementById('editDataFim')?.value;
+ const treino=document.getElementById('editTreino')?.value;
+ if(!treino||!data||!fim)return notify('Preencha todos os campos.');
+ if(fim<data)return notify('A data de fim não pode ser anterior à data de realização.');
+ r.treinamentoId=treino;r.dataRealizacao=data;r.dataFim=fim;
+ save();toast('Treinamento atualizado');closeModal();render();
+}
+function removeRecord(recordId){
+ const r=state.registros.find(x=>x.id===recordId);
+ if(!r)return;
+ if(role==='gestor'){
+  const c=collaborator(r.colaboradorId);
+  if(!c||c.empresaId!==myCompanyId())return notify('Você não tem permissão para excluir este treinamento.');
  }
- function saveRecord(cid){if(!mTreino.value||!mData.value||!mDataFim.value)return notify('Preencha todos os campos.');if(mDataFim.value<mData.value)return notify('A data de fim não pode ser anterior à data de realização.');state.registros.push({id:uid(),colaboradorId:cid,treinamentoId:mTreino.value,dataRealizacao:mData.value,dataFim:mDataFim.value});save();closeModal();toast('Treinamento registrado');render()}
-function closeModal(){document.getElementById('modalRoot').innerHTML=''}
+ if(!confirm('Excluir este registro de treinamento? Esta ação não pode ser desfeita.'))return;
+ state.registros=state.registros.filter(x=>x.id!==recordId);
+ save();toast('Treinamento removido');closeModal();render();
+}
+
 function requestTraining(tid){
  const existing=state.solicitacoes.find(s=>s.colaboradorId===user.id&&s.treinamentoId===tid&&s.status==='pendente');
  if(existing)return notify('Você já possui uma solicitação pendente para este treinamento.');
