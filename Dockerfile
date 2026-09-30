@@ -8,6 +8,6 @@ COPY . /var/www/html/
 
 RUN chown -R www-data:www-data /var/www/html
 
-EXPOSE 8080
+EXPOSE 80
 
-CMD ["sh", "-c", "php -S 0.0.0.0:${PORT:-8080} -t /var/www/html"]
+CMD ["php", "-S", "0.0.0.0:80", "-t", "/var/www/html"]
