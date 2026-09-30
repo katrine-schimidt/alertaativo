@@ -89,7 +89,7 @@ const STORAGE='controle_treinamentos_v3';
 const CHAVE_EMPRESA='painel_tv_empresa_id';
 const TAM_PAGINA=8;
 const CICLO_PAGINA_MS=10000;
-const ATUALIZA_DADOS_MS=6000;
+const ATUALIZA_DADOS_MS=60000;
 
 function todayISO(){const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10)}
 function addMonths(date,months){const d=new Date(date+'T00:00:00');d.setMonth(d.getMonth()+Number(months||12));return d.toISOString().slice(0,10)}
