@@ -416,7 +416,47 @@ function startLiveClock(){clearInterval(liveClockTimer);liveClockTimer=setInterv
 function togglePassword(){const input=document.getElementById('loginPass'),button=document.querySelector('.password-toggle');if(!input||!button)return;input.type=input.type==='password'?'text':'password';button.textContent=input.type==='password'?'Mostrar':'Ocultar'}
 function applyTheme(){const dark=localStorage.getItem('controle_tema')==='escuro';document.documentElement.classList.toggle('tema-escuro',dark);document.documentElement.dataset.theme=dark?'dark':'light';document.body.classList.toggle('tema-escuro',dark);document.querySelectorAll('.theme-icon').forEach(x=>x.textContent=dark?'☀':'☾');document.querySelectorAll('.theme-label').forEach(x=>x.textContent=dark?'Modo claro':'Modo escuro')}
 function toggleTheme(){const dark=!document.body.classList.contains('tema-escuro');localStorage.setItem('controle_tema',dark?'escuro':'claro');applyTheme()}
-function logout(){api('sair',{}).catch(()=>{});COLECOES.forEach(c=>{state[c]=[]});base={};chavesPainel={};user=null;supTab='faq';supBusca='';chamadoAtivo=null;duvidaAtiva=null;document.getElementById('app').classList.add('oculto');document.getElementById('loginScreen').classList.remove('oculto');document.getElementById('loginForm').reset()}
+function logout(){
+ api('sair',{}).catch(()=>{});
+ COLECOES.forEach(c=>{state[c]=[]});
+ base={};chavesPainel={};user=null;supTab='faq';supBusca='';chamadoAtivo=null;duvidaAtiva=null;
+ document.getElementById('app').classList.add('oculto');
+ document.getElementById('loginScreen').classList.remove('oculto');
+ document.getElementById('loginForm').reset();
+}
+const TEMPO_AUSENTE=5*60*1000;
+let momentoOculto=null;
+let timerAusencia=null;
+
+function iniciarControleAusencia(){
+ clearTimeout(timerAusencia);
+ if(!user || !document.hidden)return;
+ momentoOculto=Date.now();
+ timerAusencia=setTimeout(()=>{
+   if(document.hidden && user) logoutPorAusencia();
+ },TEMPO_AUSENTE);
+}
+
+function logoutPorAusencia(){
+ clearTimeout(timerAusencia);
+ momentoOculto=null;
+ const msg='Sua sessão foi encerrada porque você ficou mais de 5 minutos fora da plataforma.';
+ logout();
+ setTimeout(()=>toast(msg,'error'),50);
+}
+
+function verificarAusencia(){
+ if(document.hidden){
+   iniciarControleAusencia();
+   return;
+ }
+ clearTimeout(timerAusencia);
+ if(momentoOculto && Date.now()-momentoOculto>=TEMPO_AUSENTE && user){
+   logoutPorAusencia();
+   return;
+ }
+ momentoOculto=null;
+}
 function setTab(n){tab=n;renderTabs();render()}
 function renderTabs(){
  const tabs=role==='dev'
@@ -790,7 +830,12 @@ function printAgenda(id){
 applyTheme();
 restaurarSessao();
 document.addEventListener('visibilitychange',async()=>{
- if(document.hidden||!user||salvando||document.getElementById('modalRoot').innerHTML.trim())return;
+ if(document.hidden){
+   iniciarControleAusencia();
+   return;
+ }
+ verificarAusencia();
+ if(!user||salvando||document.getElementById('modalRoot').innerHTML.trim())return;
  try{
   const d=await api('sessao');
   const atual=JSON.stringify(COLECOES.map(c=>state[c])),novo=JSON.stringify(COLECOES.map(c=>d.estado[c]||[]));
